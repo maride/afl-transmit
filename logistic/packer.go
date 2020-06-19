@@ -3,6 +3,7 @@ package logistic
 import (
 	"archive/tar"
 	"bytes"
+	"compress/flate"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -11,7 +12,7 @@ import (
 )
 
 // Packs a whole fuzzer directory - at least queue/, fuzz_bitmap, fuzzer_stats
-func PackFuzzer(fuzzerName string, directory string) []byte {
+func PackFuzzer(fuzzerName string, directory string) ([]byte, error) {
 	// Gather contents
 	contentArray := [][]byte{
 		[]byte(fuzzerName),
@@ -20,21 +21,34 @@ func PackFuzzer(fuzzerName string, directory string) []byte {
 		packQueueFiles(directory),
 	}
 
+	// Prepare FLATE compression
+	var flateBuffer bytes.Buffer
+	flateWrite, flateErr := flate.NewWriter(&flateBuffer, flate.BestCompression)
+	if flateErr != nil {
+		return nil, fmt.Errorf("unable to prepare flate compressor: %s", flateErr)
+	}
+
 	// Convert all parts to base64, and concat them to the packet
-	var result []byte
+	firstRun := true
 	for _, a := range contentArray {
 		b64Buf := make([]byte, base64.StdEncoding.EncodedLen(len(a)))
 		base64.StdEncoding.Encode(b64Buf, a)
 
-		// Add newline char as separator
-		result = append(result, '\n')
+		// Add newline char as separator, avoiding it on the first run
+		if firstRun {
+			firstRun = false
+		} else {
+			flateWrite.Write([]byte("\n"))
+		}
 
 		// Append base64 encoded content
-		result = append(result, b64Buf...)
+		flateWrite.Write(b64Buf)
 	}
 
+	flateWrite.Close()
+
 	// Return result: a big byte array, representing concatted base64-encoded files
-	return result
+	return flateBuffer.Bytes(), nil
 }
 
 // Reads a single file and returns it

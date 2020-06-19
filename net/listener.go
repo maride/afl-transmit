@@ -1,11 +1,11 @@
 package net
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"github.com/maride/afl-transmit/logistic"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"strings"
@@ -50,23 +50,20 @@ func handle(conn net.Conn, outputDirectory string) {
 	// Make sure to close connection on return
 	defer conn.Close()
 
-	// Loop until we either hit EOF or an error
-	for {
-		// Read raw content
-		cont, contErr := bufio.NewReader(conn).ReadString('\x00')
+	// Read raw content
+	cont, contErr := ioutil.ReadAll(conn) // bufio.NewReader(conn).ReadString('\x00')
 
-		if contErr == io.EOF {
-			// We received the whole content, time to process it
-			unpackErr := logistic.UnpackInto([]byte(cont), outputDirectory)
-			if unpackErr != nil {
-				log.Printf("Encountered error processing packet from %s: %s", conn.RemoteAddr().String(), unpackErr)
-			}
-			return
-		} else if contErr != nil {
-			// We encountered an error on that connection
-			log.Printf("Encountered error while reading from %s: %s", conn.RemoteAddr().String(), contErr)
-			return
+	if contErr == nil || contErr == io.EOF {
+		// We received the whole content, time to process it
+		unpackErr := logistic.UnpackInto([]byte(cont), outputDirectory)
+		if unpackErr != nil {
+			log.Printf("Encountered error processing packet from %s: %s", conn.RemoteAddr().String(), unpackErr)
 		}
 
+		return
+	} else {
+		// We encountered an error on that connection
+		log.Printf("Encountered error while reading from %s: %s", conn.RemoteAddr().String(), contErr)
+		return
 	}
 }

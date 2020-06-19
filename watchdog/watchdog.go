@@ -31,7 +31,11 @@ func WatchFuzzers(outputDirectory string) {
 		for _, localFuzzDir := range localFuzzers {
 			// Pack important parts of the fuzzer directory into a byte array
 			fuzzerName := filepath.Base(localFuzzDir)
-			packedFuzzer := logistic.PackFuzzer(fuzzerName, localFuzzDir)
+			packedFuzzer, packerErr := logistic.PackFuzzer(fuzzerName, localFuzzDir)
+			if packerErr != nil {
+				log.Printf("Failed to pack fuzzer: %s", packerErr)
+				continue
+			}
 
 			// and send it to our peers
 			net.SendToPeers(packedFuzzer)

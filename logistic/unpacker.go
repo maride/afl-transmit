@@ -3,6 +3,7 @@ package logistic
 import (
 	"archive/tar"
 	"bytes"
+	"compress/flate"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -14,8 +15,13 @@ import (
 
 // Unpacks a raw string, creates files and stores them in the target directory. May return an error if one occurrs
 func UnpackInto(raw []byte, targetDir string) error {
-	// Clean raw bytes: trim possibly leading and/or trailing newlines
-	raw = bytes.Trim(raw, "\n")
+	// Prepare FLATE decompressor
+	var flateBuffer bytes.Buffer
+	flateReader := flate.NewReader(&flateBuffer)
+
+	// Uncompress
+	flateBuffer.Write(raw)
+	raw, _ = ioutil.ReadAll(flateReader)
 
 	// Process raw bytes
 	splitted := bytes.Split(raw, []byte("\n"))
