@@ -70,6 +70,11 @@ func readPeersFile(path string) error {
 
 	// Iterate over it, line by line
 	for _, line := range strings.Split(readCont, "\n") {
+		// Check if line is usable
+		if len(line) == 0 {
+			// Empty line, ignore
+			continue
+		}
 		// Append newly created peer to array
 		peers = append(peers, CreatePeer(line))
 	}
