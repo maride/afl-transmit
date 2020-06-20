@@ -4,6 +4,7 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
+	"net"
 	"strings"
 )
 
@@ -11,12 +12,14 @@ var (
 	peers      []Peer
 	peerFile   string
 	peerString string
+	removeLocals bool
 )
 
 // Registers flags required for peer parsing
 func RegisterSenderFlags() {
 	flag.StringVar(&peerFile, "peersFile", "", "File which contains the addresses for all peers, one per line")
 	flag.StringVar(&peerString, "peers", "", "Addresses to peers, comma-separated.")
+	flag.BoolVar(&removeLocals, "remove-locals", false, "Skip addresses which are served on local interfaces. This allows you to use the same peer file for all of your hosts. Please note that not too much effort is spent on resolving conflicts. If you are e.g. giving hostnames as peers, filtering won't work as expected.")
 }
 
 // Send the given content to all peers
@@ -45,6 +48,11 @@ func ReadPeers() {
 
 	// Remove doubles.
 	removeDoubledPeers()
+
+	// Remove locally bound if requested
+	if removeLocals {
+		removeLocalPeers()
+	}
 
 	log.Printf("Configured %d unique peers.", len(peers))
 }
@@ -86,6 +94,46 @@ func removeDoubledPeers() {
 			if peers[j].Address == peers[i].Address {
 				// Double found, remove j'th element
 				peers = append(peers[:j], peers[j+1:]...)
+			}
+		}
+	}
+}
+
+// Removes local peers, means addresses which are present on local interfaces, from the peers array.
+func removeLocalPeers() {
+	interfaces, interfacesErr := net.Interfaces()
+	if interfacesErr != nil {
+		log.Printf("Unable to remove local peers because interface lookup failed: %s", interfacesErr)
+		return
+	}
+
+	// Iterate over all interfaces, and collect all addresses
+	var blacklistPeers []Peer
+	for _, i := range interfaces {
+		// Get all addresses of this interface
+		iAddrs, addrsErr := i.Addrs()
+		if addrsErr != nil {
+			log.Printf("Unable to get address of interface %s: %s", i.Name, addrsErr)
+			continue
+		}
+
+		// Append all addresses
+		for _, a := range iAddrs {
+			blPeer := CreatePeer(a.(*net.IPNet).IP.String())
+			blacklistPeers = append(blacklistPeers, blPeer)
+		}
+	}
+
+	// Check all peers against all addresses
+	removed := 0
+	for i := 0; i < len(peers); i++ {
+		for _, p := range blacklistPeers {
+			if peers[i].Address == p.Address {
+				// Found match, remove that peer
+				peers = append(peers[:i], peers[i+1:]...)
+				removed++
+				i--
+				break
 			}
 		}
 	}
