@@ -125,13 +125,11 @@ func removeLocalPeers() {
 	}
 
 	// Check all peers against all addresses
-	removed := 0
 	for i := 0; i < len(peers); i++ {
 		for _, p := range blacklistPeers {
 			if peers[i].Address == p.Address {
 				// Found match, remove that peer
 				peers = append(peers[:i], peers[i+1:]...)
-				removed++
 				i--
 				break
 			}
