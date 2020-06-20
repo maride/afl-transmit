@@ -63,9 +63,7 @@ func readPeersFile(path string) error {
 	// Iterate over it, line by line
 	for _, line := range strings.Split(readCont, "\n") {
 		// Append newly created peer to array
-		peers = append(peers, Peer{
-			Address: line,
-		})
+		peers = append(peers, CreatePeer(line))
 	}
 
 	return nil
@@ -75,9 +73,7 @@ func readPeersFile(path string) error {
 func readPeersString(raw string) {
 	for _, peer := range strings.Split(raw, ",") {
 		// Append newly created peer to array
-		peers = append(peers, Peer{
-			Address: strings.TrimSpace(peer),
-		})
+		peers = append(peers, CreatePeer(peer))
 	}
 }
 
