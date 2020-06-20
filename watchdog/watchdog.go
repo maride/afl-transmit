@@ -23,10 +23,10 @@ func RegisterWatchdogFlags() {
 
 // Watch over the specified directory, send updates to peers and re-scan after the specified amount of seconds
 func WatchFuzzers(outputDirectory string) {
-	localFuzzers := detectLocalFuzzers(outputDirectory)
-
 	// Loop forever
 	for {
+		localFuzzers := detectLocalFuzzers(outputDirectory)
+		
 		// Loop over local fuzzers
 		for _, localFuzzDir := range localFuzzers {
 			// Pack important parts of the fuzzer directory into a byte array
