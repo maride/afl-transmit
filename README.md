@@ -8,6 +8,7 @@ You need to specify your AFL output directory with `--fuzzer-directory`, and you
 Some other options exist to let you fine-tune your *afl-transmit* experience, have a look at them via `--help`.
 
 On default, *afl-transmit* opens port 1337/TCP to wait for incoming connections. If you are not on a private net, make sure to protect this port with a firewall, or anyone on the internet may send you files (although this might become interesting).
+As a countermeasure, use the `--restrict-to-peers` flags to only allow connections from your known peers.
 
 ### Quickstart
 

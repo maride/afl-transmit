@@ -13,11 +13,13 @@ import (
 
 var (
 	port int
+	restrictToPeers bool
 )
 
 // Registers the flags required for the listener
 func RegisterListenFlags() {
 	flag.IntVar(&port, "port", ServerPort, "Port to bind server component to")
+	flag.BoolVar(&restrictToPeers, "restrict-to-peers", false, "Only allow connections from peers")
 }
 
 // Sets up a listener and listens forever for packets on the given port, storing their contents in the outputDirectory
@@ -40,8 +42,28 @@ func Listen(outputDirectory string) error {
 			log.Printf("Encountered error while accepting from %s: %s", conn.RemoteAddr().String(), connErr)
 			continue
 		}
-		// Handle in a separate thread
-		go handle(conn, outputDirectory)
+
+		// Check if we should restrict connections from peers
+		handleConnection := true
+		if restrictToPeers {
+			found := false
+			// Loop over peers
+			for _, p := range peers {
+				// Check if we found the remote address in our peers list
+				if p.Address == conn.RemoteAddr().String() {
+					found = true
+					break
+				}
+			}
+
+			// Handle connection only if its a peer
+			handleConnection = found
+		}
+
+		if handleConnection {
+			// Handle in a separate thread
+			go handle(conn, outputDirectory)
+		}
 	}
 }
 
