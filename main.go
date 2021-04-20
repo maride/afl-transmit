@@ -11,6 +11,7 @@ import (
 
 var (
 	outputDirectory string
+	printStats bool
 )
 
 func main() {
@@ -34,7 +35,9 @@ func main() {
 	go watchdog.WatchFuzzers(outputDirectory)
 
 	// Start stat printer
-	go stats.PrintStats()
+	if printStats {
+		go stats.PrintStats()
+	}
 
 	// Listen for incoming connections
 	listenErr := net.Listen(outputDirectory)
@@ -46,4 +49,5 @@ func main() {
 // Registers flags which are required by multiple modules and need to be handled here
 func RegisterGlobalFlags() {
 	flag.StringVar(&outputDirectory, "fuzzer-directory", "", "The output directory of the fuzzer(s)")
+	flag.BoolVar(&printStats, "print-stats", true, "Print traffic statistics every few seconds")
 }
