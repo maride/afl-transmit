@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/maride/afl-transmit/logistic"
+	"github.com/maride/afl-transmit/stats"
 	"io"
 	"io/ioutil"
 	"log"
@@ -81,6 +82,9 @@ func handle(conn net.Conn, outputDirectory string) {
 		if unpackErr != nil {
 			log.Printf("Encountered error processing packet from %s: %s", conn.RemoteAddr().String(), unpackErr)
 		}
+
+		// Push read bytes to stats
+		stats.PushStat(stats.Stat{ReceivedBytes: uint64(len(cont))})
 
 		return
 	} else {

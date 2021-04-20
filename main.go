@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/maride/afl-transmit/net"
+	"github.com/maride/afl-transmit/stats"
 	"github.com/maride/afl-transmit/watchdog"
 	"log"
 )
@@ -31,6 +32,9 @@ func main() {
 
 	// Start watchdog for local afl instances
 	go watchdog.WatchFuzzers(outputDirectory)
+
+	// Start stat printer
+	go stats.PrintStats()
 
 	// Listen for incoming connections
 	listenErr := net.Listen(outputDirectory)

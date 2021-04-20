@@ -2,6 +2,7 @@ package net
 
 import (
 	"fmt"
+	"github.com/maride/afl-transmit/stats"
 	"log"
 	"net"
 	"regexp"
@@ -44,11 +45,14 @@ func (p *Peer) SendToPeer(content []byte) {
 	}
 
 	// Send
-	_, writeErr := tcpConn.Write(content)
+	written, writeErr := tcpConn.Write(content)
 	if writeErr != nil {
 		log.Printf("Unable to write to peer %s: %s", tcpConn.RemoteAddr().String(), writeErr)
 		return
 	}
+
+	// Push written bytes to stats
+	stats.PushStat(stats.Stat{SentBytes: uint64(written)})
 
 	// Close connection
 	tcpConn.Close()
