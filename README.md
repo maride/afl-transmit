@@ -2,6 +2,12 @@
 
 Transfer AFL files over a mesh to fuzz across multiple servers 
 
+## Features
+
+- Using DEFLATE compression format (see [RFC 1951](https://www.ietf.org/rfc/rfc1951.html))
+- Automatically syncs the main fuzzer to secondary nodes, and all secondary fuzzers back to the main node
+- Usable on UNIXoid (Linux, OSX) systems and Windows
+
 ## Usage
 
 You need to specify your AFL output directory with `--fuzzer-directory`, and your peers with `--peers`.
