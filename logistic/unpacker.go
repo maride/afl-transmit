@@ -43,13 +43,17 @@ func UnpackInto(raw []byte, targetDir string) error {
 	if strings.Contains(fuzzerName, "/") {
 		return fmt.Errorf("received file name with a slash, discarding whole packet for fuzzer \"%s\"", fuzzerName)
 	}
-	targetDir = fmt.Sprintf("%s%c%s", targetDir, os.PathSeparator, fuzzerName)
 
-	// Remove old target directory, and create a new one
-	mkdirErr := os.MkdirAll(targetDir, 0700)
-	if mkdirErr != nil {
-		// Creating the target directory failed, so we won't proceed unpacking into a non-existent directory
-		return fmt.Errorf("unable to unpack packet: could not create directory at %s: %s", targetDir, mkdirErr)
+	// Check if our target directory (this very fuzzers directory) already exists, or if we need to create it
+	targetDir = fmt.Sprintf("%s%c%s", targetDir, os.PathSeparator, fuzzerName)
+	_, folderErr := os.Stat(targetDir)
+	if os.IsNotExist(folderErr) {
+		// directory doesn't yet exist, create it
+		mkdirErr := os.MkdirAll(targetDir, 0700)
+		if mkdirErr != nil {
+			// Creating the target directory failed, so we won't proceed unpacking into a non-existent directory
+			return fmt.Errorf("unable to unpack packet: could not create directory at %s: %s", targetDir, mkdirErr)
+		}
 	}
 
 	// Process every single part
@@ -63,6 +67,14 @@ func UnpackInto(raw []byte, targetDir string) error {
 // Writes the contents to the target
 func unpackSingleFile(raw []byte, targetDirectory string, filename string) {
 	path := fmt.Sprintf("%s%c%s", targetDirectory, os.PathSeparator, filename)
+
+	// Check if the file already exists - we won't overwrite it then
+	_, fileInfoErr := os.Stat(path)
+	if os.IsExist(fileInfoErr) {
+		// File already exists, we don't need to write a thing
+		return
+	}
+
 	writeErr := ioutil.WriteFile(path, raw, 0644)
 	if writeErr != nil {
 		log.Printf("Unable to write to file %s: %s", path, writeErr)
@@ -79,9 +91,11 @@ func unpackQueueDir(raw []byte, targetDir string) {
 	// Set correct path for files
 	targetDir = fmt.Sprintf("%s%cqueue", targetDir, os.PathSeparator)
 
-	// Remove queue directory and re-fill it
-	os.RemoveAll(targetDir)
-	os.Mkdir(targetDir, 0755)
+	// Create queue directory if it doesn't exist yet
+	_, folderErr := os.Stat(targetDir)
+	if os.IsNotExist(folderErr) {
+		os.Mkdir(targetDir, 0755)
+	}
 
 	// Iterate over all files in the archive
 	for {
