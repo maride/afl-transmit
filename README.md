@@ -18,7 +18,7 @@ As a countermeasure, use the `--restrict-to-peers` flags to only allow connectio
 
 ### Quickstart
 
-- On your host 10.0.0.1: `./afl-transmit --fuzzer-directory /ram/output --peers 10.0.0.2,10.0.0.3`
-- On your host 10.0.0.2: `./afl-transmit --fuzzer-directory /ram/output --peers 10.0.0.1,10.0.0.3`
-- On your host 10.0.0.3: `./afl-transmit --fuzzer-directory /ram/output --peers 10.0.0.1,10.0.0.2`
+- On your host 10.0.0.1: `./afl-transmit --fuzzer-directory /ram/output --main --peers 10.0.0.2,10.0.0.3`
+- On your host 10.0.0.2: `./afl-transmit --fuzzer-directory /ram/output --peers 10.0.0.1`
+- On your host 10.0.0.3: `./afl-transmit --fuzzer-directory /ram/output --peers 10.0.0.1`
 
