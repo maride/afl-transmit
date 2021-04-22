@@ -4,22 +4,38 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/flate"
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 )
 
-// Packs a whole fuzzer directory - at least queue/, fuzz_bitmap, fuzzer_stats
-func PackFuzzer(fuzzerName string, directory string) ([]byte, error) {
-	// Gather contents
-	contentArray := [][]byte{
-		[]byte(fuzzerName),
-		packSingleFile(directory, "fuzz_bitmap"),
-		packSingleFile(directory, "fuzzer_stats"),
-		packQueueFiles(directory),
+// PackFuzzers packs all targeted fuzzers into a TAR - at least queue/, fuzz_bitmap, fuzzer_stats
+func PackFuzzers(fuzzers []string, fuzzerDirectory string) ([]byte, error) {
+	// Create TAR archive
+	var tarBuffer bytes.Buffer
+	tarWriter := tar.NewWriter(&tarBuffer)
+
+	// Essentially we want to pack three things from each targeted fuzzer:
+	// - the fuzz_bitmap file
+	// - the fuzzer_stats file
+	// - the is_main_fuzzer file if present
+	// - the queue/ directory
+	for _, fuzzer := range fuzzers {
+		// We need full paths to read, but will write relative paths into the TAR archive
+		absFuzzerPath := fuzzerDirectory
+		relFuzzerPath := strings.TrimPrefix(fuzzer, fuzzerDirectory)
+
+		// Read-n-Pack™
+		packSingleFile(tarWriter, absFuzzerPath, relFuzzerPath, "fuzz_bitmap", false)
+		packSingleFile(tarWriter, absFuzzerPath, relFuzzerPath, "fuzzer_stats", false)
+		packSingleFile(tarWriter, absFuzzerPath, relFuzzerPath, "is_main_fuzzer", true)
+		packQueueFiles(tarWriter, absFuzzerPath, relFuzzerPath)
 	}
+
+	// Close TAR archive
+	tarWriter.Close()
 
 	// Prepare FLATE compression
 	var flateBuffer bytes.Buffer
@@ -28,52 +44,50 @@ func PackFuzzer(fuzzerName string, directory string) ([]byte, error) {
 		return nil, fmt.Errorf("unable to prepare flate compressor: %s", flateErr)
 	}
 
-	// Convert all parts to base64, and concat them to the packet
-	firstRun := true
-	for _, a := range contentArray {
-		b64Buf := make([]byte, base64.StdEncoding.EncodedLen(len(a)))
-		base64.StdEncoding.Encode(b64Buf, a)
-
-		// Add newline char as separator, avoiding it on the first run
-		if firstRun {
-			firstRun = false
-		} else {
-			flateWrite.Write([]byte("\n"))
-		}
-
-		// Append base64 encoded content
-		flateWrite.Write(b64Buf)
-	}
-
+	// Apply FLATE compression
+	flateWrite.Write(tarBuffer.Bytes())
 	flateWrite.Close()
 
-	// Return result: a big byte array, representing concatted base64-encoded files
+	// Return result: a DEFLATEd TAR archive
 	return flateBuffer.Bytes(), nil
 }
 
-// Reads a single file and returns it
-func packSingleFile(directory string, fileName string) []byte {
-	path := fmt.Sprintf("%s%c%s", directory, os.PathSeparator, fileName)
-	contents, readErr := ioutil.ReadFile(path)
+// packSingleFile packs a single file and writes it to the archive
+// fuzzerDirectory is the base directory, e.g. /project/fuzzers/
+// fuzzer is the name of the fuzzer itself, e.g. main-fuzzer-01
+// filename is the name of the file you want to pack, e.g. fuzzer_stats
+// ignoreNotFound is just used for files which may not be present in all fuzzer directories, like is_main_fuzzer
+func packSingleFile(tarWriter *tar.Writer, absPath string, relPath string, fileName string, ignoreNotFound bool) {
+	// Read file
+	readPath := fmt.Sprintf("%s%c%s%c%s", absPath, os.PathSeparator, relPath, os.PathSeparator, fileName)
+	contents, readErr := ioutil.ReadFile(readPath)
 	if readErr != nil {
-		log.Printf("Failed to read file %s: %s", path, readErr)
-		return nil
+		if !ignoreNotFound {
+			log.Printf("Failed to read file %s: %s", readPath, readErr)
+		}
+		return
 	}
 
-	return contents
+	// Create header for this file
+	header := &tar.Header{
+		Name: fmt.Sprintf("%s%c%s", relPath, os.PathSeparator, fileName),
+		Mode: 0600,
+		Size: int64(len(contents)),
+	}
+
+	// Add header and contents to archive
+	tarWriter.WriteHeader(header)
+	tarWriter.Write(contents)
 }
 
 // Packs the files in the given directory into a tar archive
-func packQueueFiles(directory string) []byte {
-	var tarBuffer bytes.Buffer
-	tarWriter := tar.NewWriter(&tarBuffer)
-
+func packQueueFiles(tarWriter *tar.Writer, absPath string, relPath string) {
 	// Get list of queue files
-	queuePath := fmt.Sprintf("%s%cqueue", directory, os.PathSeparator)
+	queuePath := fmt.Sprintf("%s%c%s%cqueue", absPath, os.PathSeparator, relPath, os.PathSeparator)
 	filesInDir, readErr := ioutil.ReadDir(queuePath)
 	if readErr != nil {
-		log.Printf("Failed to list directory content of %s: %s", directory, readErr)
-		return nil
+		log.Printf("Failed to list directory content of %s: %s", queuePath, readErr)
+		return
 	}
 
 	// Walk over each file and add it to our archive
@@ -84,29 +98,7 @@ func packQueueFiles(directory string) []byte {
 			continue
 		}
 
-		// Create header for this file
-		header := &tar.Header{
-			Name: f.Name(),
-			Mode: 0600,
-			Size: f.Size(),
-		}
-
-		// Read file
-		path := fmt.Sprintf("%s%c%s", queuePath, os.PathSeparator, f.Name())
-		contents, readErr := ioutil.ReadFile(path)
-		if readErr != nil {
-			log.Printf("Failed to read file %s: %s", path, readErr)
-			continue
-		}
-
-		// Add header and contents to archive
-		tarWriter.WriteHeader(header)
-		tarWriter.Write(contents)
+		// Pack into the archive
+		packSingleFile(tarWriter, absPath, relPath, fmt.Sprintf("queue%c%s", os.PathSeparator, f.Name()), false)
 	}
-
-	// Close constructed tar archive
-	tarWriter.Close()
-
-	// And return it
-	return tarBuffer.Bytes()
 }

@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -27,19 +26,15 @@ func RegisterWatchdogFlags() {
 func WatchFuzzers(outputDirectory string) {
 	// Loop forever
 	for {
-		// Loop over those fuzzer directories we want to share
-		for _, localFuzzDir := range getTargetFuzzers(outputDirectory) {
-			// Pack important parts of the fuzzer directory into a byte array
-			fuzzerName := filepath.Base(localFuzzDir)
-			packedFuzzer, packerErr := logistic.PackFuzzer(fuzzerName, localFuzzDir)
-			if packerErr != nil {
-				log.Printf("Failed to pack fuzzer: %s", packerErr)
-				continue
-			}
-
-			// and send it to our peers
-			net.SendToPeers(packedFuzzer)
+		// Pack important parts of the fuzzers into an archive
+		packedFuzzers, packerErr := logistic.PackFuzzers(getTargetFuzzers(outputDirectory), outputDirectory)
+		if packerErr != nil {
+			log.Printf("Failed to pack fuzzer: %s", packerErr)
+			continue
 		}
+
+		// and send it to our peers
+		net.SendToPeers(packedFuzzers)
 
 		// Sleep a bit
 		time.Sleep(time.Duration(rescanSecs) * time.Second)
