@@ -12,13 +12,13 @@ import (
 )
 
 var (
-	rescanSecs int
+	rescan int
 	isMainNode bool
 )
 
-// Register flags
+// RegisterWatchdogFlags registers required flags for the watchdog
 func RegisterWatchdogFlags() {
-	flag.IntVar(&rescanSecs, "rescan-secs", 30, "Seconds to wait before rescanning local fuzzer directories")
+	flag.IntVar(&rescan, "rescan", 30, "Minutes to wait before rescanning local fuzzer directories")
 	flag.BoolVar(&isMainNode, "main", false, "Set this option if this afl-transmit instance is running on the node running the main afl-fuzz instance")
 }
 
@@ -37,7 +37,7 @@ func WatchFuzzers(outputDirectory string) {
 		net.SendToPeers(packedFuzzers)
 
 		// Sleep a bit
-		time.Sleep(time.Duration(rescanSecs) * time.Second)
+		time.Sleep(time.Duration(rescan) * time.Minute)
 	}
 }
 
