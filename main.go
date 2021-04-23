@@ -12,7 +12,6 @@ import (
 
 var (
 	outputDirectory string
-	printStats bool
 )
 
 func main() {
@@ -22,14 +21,9 @@ func main() {
 	net.RegisterListenFlags()
 	net.RegisterCryptFlags()
 	logistic.RegisterPackerFlags()
+	stats.RegisterStatsFlags()
 	RegisterGlobalFlags()
 	flag.Parse()
-
-	// Check if we have the only required argument present - outputDirectory
-	if outputDirectory == "" {
-		fmt.Println("Please specify fuzzer-directory. See help (--help) for details.")
-		return
-	}
 
 	// Read peers file
 	net.ReadPeers()
@@ -45,9 +39,7 @@ func main() {
 	go watchdog.WatchFuzzers(outputDirectory)
 
 	// Start stat printer
-	if printStats {
-		go stats.PrintStats()
-	}
+	go stats.PrintStats()
 
 	// Listen for incoming connections
 	listenErr := net.Listen(outputDirectory)
@@ -59,5 +51,4 @@ func main() {
 // Registers flags which are required by multiple modules and need to be handled here
 func RegisterGlobalFlags() {
 	flag.StringVar(&outputDirectory, "fuzzer-directory", "", "The output directory of the fuzzer(s)")
-	flag.BoolVar(&printStats, "print-stats", true, "Print traffic statistics every few seconds")
 }

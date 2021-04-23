@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"flag"
 	"fmt"
 	"github.com/dustin/go-humanize"
 	"time"
@@ -15,6 +16,14 @@ type Stat struct {
 // statPipe is a channel used to
 var stats Stat
 
+// printStats sets whether we should print stats or not
+var printStats bool
+
+// RegisterStatsFlags registers all flags required by the stats module
+func RegisterStatsFlags() {
+	flag.BoolVar(&printStats, "print-stats", true, "Print traffic statistics every few seconds")
+}
+
 // PushStat pushes the given stat
 func PushStat(s Stat) {
 	stats.SentBytes += s.SentBytes
@@ -23,6 +32,11 @@ func PushStat(s Stat) {
 
 // PrintStats periodically prints the collected statistics
 func PrintStats() {
+	// Check if we should print stats
+	if !printStats {
+		return
+	}
+
 	t := time.NewTicker(2 * time.Second)
 
 	for {
