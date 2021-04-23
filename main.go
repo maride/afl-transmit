@@ -19,6 +19,7 @@ func main() {
 	watchdog.RegisterWatchdogFlags()
 	net.RegisterSenderFlags()
 	net.RegisterListenFlags()
+	net.RegisterCryptFlags()
 	RegisterGlobalFlags()
 	flag.Parse()
 
@@ -30,6 +31,13 @@ func main() {
 
 	// Read peers file
 	net.ReadPeers()
+
+	// Initialize crypto if desired
+	cryptErr := net.InitCrypt()
+	if cryptErr != nil {
+		fmt.Printf("Failed to initialize crypt function: %s", cryptErr)
+		return
+	}
 
 	// Start watchdog for local afl instances
 	go watchdog.WatchFuzzers(outputDirectory)

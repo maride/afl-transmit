@@ -37,6 +37,17 @@ func CreatePeer(address string) Peer {
 
 // Sends the given content to the peer
 func (p *Peer) SendToPeer(content []byte) {
+	// Encrypt content if desired
+	if CryptApplicable() {
+		// Encrypt packet
+		var encryptErr error
+		content, encryptErr = Encrypt(content)
+		if encryptErr != nil {
+			log.Printf("Failed to decrypt packet from %s: %s", p.Address, encryptErr)
+			return
+		}
+	}
+
 	// Build up a connection
 	tcpConn, dialErr := net.Dial("tcp", p.Address)
 	if dialErr != nil {

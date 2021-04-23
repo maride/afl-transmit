@@ -76,9 +76,20 @@ func handle(conn net.Conn, outputDirectory string) {
 	// Read raw content
 	cont, contErr := ioutil.ReadAll(conn) // bufio.NewReader(conn).ReadString('\x00')
 
+	// Check if we are able to decrypt
+	if CryptApplicable() {
+		// Decrypt packet
+		var decryptErr error
+		cont, decryptErr = Decrypt(cont)
+		if decryptErr != nil {
+			log.Printf("Failed to decrypt packet from %s: %s", conn.RemoteAddr().String(), decryptErr)
+			return
+		}
+	}
+
 	if contErr == nil || contErr == io.EOF {
 		// We received the whole content, time to process it
-		unpackErr := logistic.UnpackInto([]byte(cont), outputDirectory)
+		unpackErr := logistic.UnpackInto(cont, outputDirectory)
 		if unpackErr != nil {
 			log.Printf("Encountered error processing packet from %s: %s", conn.RemoteAddr().String(), unpackErr)
 		}
