@@ -4,12 +4,20 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/flate"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 )
+
+var noDuplicates bool
+
+// RegisterPackerFlags registers flags which are required by the packer
+func RegisterPackerFlags() {
+	flag.BoolVar(&noDuplicates, "no-duplicates", true, "Avoid transmitting the same file multiple times, e.g. because it is present in multiple fuzzer's queues")
+}
 
 // PackFuzzers packs all targeted fuzzers into a TAR - at least queue/, fuzz_bitmap, fuzzer_stats
 func PackFuzzers(fuzzers []string, fuzzerDirectory string) ([]byte, error) {
@@ -21,7 +29,8 @@ func PackFuzzers(fuzzers []string, fuzzerDirectory string) ([]byte, error) {
 	// - the fuzz_bitmap file
 	// - the fuzzer_stats file
 	// - the is_main_fuzzer file if present
-	// - the queue/ directory
+	// - the queue/ directory - but avoiding duplicates
+	var pkgCont []string // list of queue files already present in the archive
 	for _, fuzzer := range fuzzers {
 		// We need full paths to read, but will write relative paths into the TAR archive
 		absFuzzerPath := fuzzerDirectory
@@ -31,7 +40,7 @@ func PackFuzzers(fuzzers []string, fuzzerDirectory string) ([]byte, error) {
 		packSingleFile(tarWriter, absFuzzerPath, relFuzzerPath, "fuzz_bitmap", false)
 		packSingleFile(tarWriter, absFuzzerPath, relFuzzerPath, "fuzzer_stats", false)
 		packSingleFile(tarWriter, absFuzzerPath, relFuzzerPath, "is_main_fuzzer", true)
-		packQueueFiles(tarWriter, absFuzzerPath, relFuzzerPath)
+		packQueueFiles(tarWriter, absFuzzerPath, relFuzzerPath, &pkgCont)
 	}
 
 	// Close TAR archive
@@ -81,7 +90,7 @@ func packSingleFile(tarWriter *tar.Writer, absPath string, relPath string, fileN
 }
 
 // Packs the files in the given directory into a tar archive
-func packQueueFiles(tarWriter *tar.Writer, absPath string, relPath string) {
+func packQueueFiles(tarWriter *tar.Writer, absPath string, relPath string, pkgCont *[]string) {
 	// Get list of queue files
 	queuePath := fmt.Sprintf("%s%c%s%cqueue", absPath, os.PathSeparator, relPath, os.PathSeparator)
 	filesInDir, readErr := ioutil.ReadDir(queuePath)
@@ -98,7 +107,29 @@ func packQueueFiles(tarWriter *tar.Writer, absPath string, relPath string) {
 			continue
 		}
 
+		// Check if we should care fore duplicates
+		if noDuplicates && checkDuplicate(f.Name(), pkgCont) {
+			// that file is already present in the package - avoid packing it again
+			continue
+		}
+
 		// Pack into the archive
 		packSingleFile(tarWriter, absPath, relPath, fmt.Sprintf("queue%c%s", os.PathSeparator, f.Name()), false)
+
+		if noDuplicates {
+			// Append added file name to the list of things included in the package
+			*pkgCont = append(*pkgCont, f.Name())
+		}
 	}
+}
+
+// checkDuplicate checks if name is already present in pkgCont
+func checkDuplicate(name string, pkgCont *[]string) bool {
+	for _, p := range *pkgCont {
+		if p == name {
+			return true
+		}
+	}
+
+	return true
 }

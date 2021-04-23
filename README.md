@@ -37,3 +37,14 @@ dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 | tee transmit.key
 ```
 
 As already said, the same key must be used on all nodes.
+
+### Traffic reduction
+
+On default, *afl-transmit* avoids sending files with the same file present in different fuzzer directories.
+This will greatly reduce the traffic between your nodes (I measured 621 kB to 1.3 kB, for example).
+Please note that there might be some edge cases when you don't want that behaviour, e.g.
+- you want to preserve the queue of each fuzzer
+- you expect your fuzzers to give the same (file) name to different test cases, in which case *afl-transmit* would mistakenly assume that the file has the same *contents* and not only the same *name*
+- you don't care for traffic
+
+To avoid reducing the transmitted files, add `--no-duplicates=false` as argument.
