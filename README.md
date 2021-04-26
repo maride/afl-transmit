@@ -8,6 +8,7 @@ Transfer AFL files over a mesh to fuzz across multiple servers
 - Automatically syncs the main fuzzer to secondary nodes, and all secondary fuzzers back to the main node
 - Encrypts traffic between nodes using AES-256, dropping plaintext packets
 - Usable on UNIXoid (Linux, OSX) systems and Windows
+- Reduces the amount of transmitted test cases to a bare minimum
 
 ## Usage
 
@@ -47,4 +48,13 @@ Please note that there might be some edge cases when you don't want that behavio
 - you expect your fuzzers to give the same (file) name to different test cases, in which case *afl-transmit* would mistakenly assume that the file has the same *contents* and not only the same *name*
 - you don't care for traffic
 
-To avoid reducing the transmitted files, add `--no-duplicates=false` as argument.
+To avoid reducing the transmitted files by comparing filenames, add `--no-duplicates=false` as argument.
+
+Also on default, *afl-transmit* tries to check if the queue of the observed fuzzers contain test cases which originated from another fuzzer instance.
+In that case, the file name contains the keyword "sync" in it, and looks e.g. like this: `id:001815,time:0,orig:id:001805,sync:main,src:001794`
+If it was copied from another fuzzer, it means that the file is already present in the fuzzer cluster, and can safely be skipped on those fuzzer instances which copied it.
+Please note that this will produce false positives if the filename of your testcases contain `,sync:` for whatever reason.
+
+To avoid reducing the transmitted files by filtering synced files out, add `--avoid-synced=false` as argument.
+
+If you still have trouble paying the invoice for your ISP due to heavy traffic usage, try increasing the `--rescan` value, so files are transmitted less often.

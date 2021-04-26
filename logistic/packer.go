@@ -14,9 +14,14 @@ import (
 
 var noDuplicates bool
 
+// avoidSynced is the flag to set if files containing "sync" should be packed or not.
+// Those files are from another fuzzer - no need to pack them twice.
+var avoidSynced bool
+
 // RegisterPackerFlags registers flags which are required by the packer
 func RegisterPackerFlags() {
 	flag.BoolVar(&noDuplicates, "no-duplicates", true, "Avoid transmitting the same file multiple times, e.g. because it is present in multiple fuzzer's queues")
+	flag.BoolVar(&avoidSynced, "avoid-synced", true, "Avoid transmitting files containing the keyword 'sync', as they are from other fuzzers anyways, and should be included by their afl-transmit instance")
 }
 
 // PackFuzzers packs all targeted fuzzers into a TAR - at least queue/, fuzz_bitmap, fuzzer_stats
@@ -110,6 +115,14 @@ func packQueueFiles(tarWriter *tar.Writer, absPath string, relPath string, pkgCo
 		// Check if we should care fore duplicates
 		if noDuplicates && checkDuplicate(f.Name(), pkgCont) {
 			// that file is already present in the package - avoid packing it again
+			continue
+		}
+
+		// Check if we should care for the keyword 'sync' in file name
+		if avoidSynced && strings.Contains(f.Name(), ",sync:") {
+			// seems like this file was put into the queue of this fuzzer by syncing it from another fuzzer. We don't
+			// need to transmit it then, because the fuzzer which found that case will have the same file but  without
+			// the keyword "sync" in it. Simply put, we avoid sending the same file multiple times with different names.
 			continue
 		}
 
