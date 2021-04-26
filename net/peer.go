@@ -3,7 +3,6 @@ package net
 import (
 	"fmt"
 	"github.com/maride/afl-transmit/stats"
-	"log"
 	"net"
 	"regexp"
 	"strings"
@@ -36,35 +35,32 @@ func CreatePeer(address string) Peer {
 }
 
 // Sends the given content to the peer
-func (p *Peer) SendToPeer(content []byte) {
+func (p *Peer) SendToPeer(content []byte) error {
 	// Encrypt content if desired
 	if CryptApplicable() {
 		// Encrypt packet
 		var encryptErr error
 		content, encryptErr = Encrypt(content)
 		if encryptErr != nil {
-			log.Printf("Failed to decrypt packet from %s: %s", p.Address, encryptErr)
-			return
+			return fmt.Errorf("Failed to decrypt packet from %s: %s", p.Address, encryptErr)
 		}
 	}
 
 	// Build up a connection
 	tcpConn, dialErr := net.Dial("tcp", p.Address)
 	if dialErr != nil {
-		log.Printf("Unable to connect to peer %s: %s", p.Address, dialErr)
-		return
+		return fmt.Errorf("Unable to connect to peer %s: %s", p.Address, dialErr)
 	}
 
 	// Send
 	written, writeErr := tcpConn.Write(content)
 	if writeErr != nil {
-		log.Printf("Unable to write to peer %s: %s", tcpConn.RemoteAddr().String(), writeErr)
-		return
+		return fmt.Errorf("Unable to write to peer %s: %s", tcpConn.RemoteAddr().String(), writeErr)
 	}
 
 	// Push written bytes to stats
 	stats.PushStat(stats.Stat{SentBytes: uint64(written)})
 
 	// Close connection
-	tcpConn.Close()
+	return tcpConn.Close()
 }

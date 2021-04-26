@@ -34,7 +34,7 @@ func WatchFuzzers(outputDirectory string) {
 		}
 
 		// and send it to our peers
-		net.SendToPeers(packedFuzzers)
+		go net.SendToPeers(packedFuzzers)
 
 		// Sleep a bit
 		time.Sleep(time.Duration(rescan) * time.Minute)

@@ -2,10 +2,12 @@ package net
 
 import (
 	"flag"
+	"github.com/maride/afl-transmit/stats"
 	"io/ioutil"
 	"log"
 	"net"
 	"strings"
+	"time"
 )
 
 var (
@@ -24,9 +26,45 @@ func RegisterSenderFlags() {
 
 // Send the given content to all peers
 func SendToPeers(content []byte) {
-	for _, p := range peers {
-		p.SendToPeer(content)
+	// Reset stats
+	alivePeers := uint8(0)
+
+	// Peers where the sending process initially failed
+	var failedPeers []Peer
+
+	for i := 0; i < len(peers); i++ {
+		// Send to that peer
+		sendErr := peers[i].SendToPeer(content)
+		if sendErr != nil {
+			// Sending failed, retry in a second
+			failedPeers = append(failedPeers, peers[i])
+			continue
+		}
+		alivePeers++
 	}
+
+	// Set stats now - we might be updating it in a few minutes again
+	stats.SetAlivePeers(alivePeers)
+
+	// Sleep so our peers maybe come up again
+	if len(failedPeers) > 0 {
+		time.Sleep(10 * time.Second)
+	}
+
+	// Retry
+	for i := 0; i < len(failedPeers); i++ {
+		// Send to that peer
+		sendErr := failedPeers[i].SendToPeer(content)
+		if sendErr != nil {
+			// Sending failed - inform user
+			log.Printf("Transmission failed after retry: %s", sendErr)
+			continue
+		}
+		alivePeers++
+	}
+
+	// Finally update it again, now including those peers where we retried it
+	stats.SetAlivePeers(alivePeers)
 }
 
 // Parses both peerString and peerFile, and adds all the peers to an internal array.
@@ -53,6 +91,11 @@ func ReadPeers() {
 	if removeLocals {
 		removeLocalPeers()
 	}
+
+	// Update stats, include registered peers
+	stats.PushStat(stats.Stat{
+		RegisteredPeers: uint8(len(peers)),
+	})
 
 	log.Printf("Configured %d unique peers.", len(peers))
 }

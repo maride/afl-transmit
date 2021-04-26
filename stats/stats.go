@@ -11,6 +11,8 @@ import (
 type Stat struct {
 	SentBytes uint64
 	ReceivedBytes uint64
+	RegisteredPeers uint8
+	AlivePeer uint8
 }
 
 // statPipe is a channel used to
@@ -25,9 +27,17 @@ func RegisterStatsFlags() {
 }
 
 // PushStat pushes the given stat
+// Note that SentBytes, ReceivedBytes and RegisteredPeers are added to the current number,
+// while AlivePeer is interfaced with SetAlivePeers and is left ignored by PushStat
 func PushStat(s Stat) {
 	stats.SentBytes += s.SentBytes
 	stats.ReceivedBytes += s.ReceivedBytes
+	stats.RegisteredPeers += s.RegisteredPeers
+}
+
+// SetAlivePeers sets the number of alive peers, means peers we could connect to
+func SetAlivePeers(n uint8) {
+	stats.AlivePeer = n
 }
 
 // PrintStats periodically prints the collected statistics
@@ -47,6 +57,6 @@ func PrintStats() {
 		bIn := humanize.Bytes(stats.ReceivedBytes)
 		bOut := humanize.Bytes(stats.SentBytes)
 
-		fmt.Printf("%s in / %s out\r", bIn, bOut)
+		fmt.Printf("Traffic: %s in / %s out | Peers: %d seen / %d registered\t\r", bIn, bOut, stats.AlivePeer, stats.RegisteredPeers)
 	}
 }
