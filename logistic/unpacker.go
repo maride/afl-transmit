@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 )
 
 // UnpackInto decrompesses the given bytes with DEFLATE, then unpacks the result as TAR archive into the targetDir
@@ -63,6 +64,12 @@ func unpackSingleFile(raw []byte, targetDirectory string, filename string) {
 	_, fileInfoErr := os.Stat(destPath)
 	if os.IsExist(fileInfoErr) {
 		// File already exists, we don't need to write a thing
+		return
+	}
+
+	// Check if some funny stuff is going on
+	if strings.Contains(targetDirectory, "..") || strings.Contains(filename, "..") {
+		log.Printf("Skipping traversal filename: %s", filename)
 		return
 	}
 
