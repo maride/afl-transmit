@@ -4,10 +4,11 @@ Transfer AFL files over a mesh to fuzz across multiple servers
 
 ## Features
 
+- No obscure dependencies, no painful setup process - just a single, self-contained binary
 - Using DEFLATE compression format (see [RFC 1951](https://www.ietf.org/rfc/rfc1951.html))
 - Automatically syncs the main fuzzer to secondary nodes, and all secondary fuzzers back to the main node
 - Encrypts traffic between nodes using AES-256, dropping plaintext packets
-- Usable on UNIXoid (Linux, OSX) systems and Windows
+- Usable on UNIX-like systems (Linux, OSX) and Windows
 - Reduces the amount of transmitted test cases to a bare minimum
 
 ## Usage
@@ -20,9 +21,13 @@ As a countermeasure, use the `--restrict-to-peers` flags to only allow connectio
 
 ### Quickstart
 
-- On your host 10.0.0.1: `./afl-transmit --fuzzer-directory /ram/output --main --peers 10.0.0.2,10.0.0.3`
-- On your host 10.0.0.2: `./afl-transmit --fuzzer-directory /ram/output --peers 10.0.0.1`
-- On your host 10.0.0.3: `./afl-transmit --fuzzer-directory /ram/output --peers 10.0.0.1`
+Let's assume you have three servers running with some instances of AFL, all in secondary (`-S`) mode, except the main fuzzer running on the box 10.0.0.1.
+To sync test cases across those servers, you'd need to run
+- on 10.0.0.1: `./afl-transmit --fuzzer-directory /ram/output --main --peers 10.0.0.2,10.0.0.3`
+- on 10.0.0.2: `./afl-transmit --fuzzer-directory /ram/output --peers 10.0.0.1`
+- on 10.0.0.3: `./afl-transmit --fuzzer-directory /ram/output --peers 10.0.0.1`
+
+Because *afl-transmit* stays in the foreground, you should probably run it in a `tmux` window or something comparable.
 
 ### Crypto
 
@@ -41,7 +46,7 @@ As already said, the same key must be used on all nodes.
 
 ### Traffic reduction
 
-On default, *afl-transmit* avoids sending files with the same file present in different fuzzer directories.
+On default, *afl-transmit* avoids sending files with the same name present in different fuzzer directories.
 This will greatly reduce the traffic between your nodes (I measured 621 kB to 1.3 kB, for example).
 Please note that there might be some edge cases when you don't want that behaviour, e.g.
 - you want to preserve the queue of each fuzzer
@@ -58,3 +63,4 @@ Please note that this will produce false positives if the filename of your testc
 To avoid reducing the transmitted files by filtering synced files out, add `--avoid-synced=false` as argument.
 
 If you still have trouble paying the invoice for your ISP due to heavy traffic usage, try increasing the `--rescan` value, so files are transmitted less often.
+
