@@ -33,7 +33,6 @@ func PackFuzzers(fuzzers []string, fuzzerDirectory string) ([]byte, error) {
 	// Essentially we want to pack three things from each targeted fuzzer:
 	// - the fuzz_bitmap file
 	// - the fuzzer_stats file
-	// - the is_main_fuzzer file if present
 	// - the queue/ directory - but avoiding duplicates
 	var pkgCont []string // list of queue files already present in the archive
 	for _, fuzzer := range fuzzers {
@@ -42,9 +41,8 @@ func PackFuzzers(fuzzers []string, fuzzerDirectory string) ([]byte, error) {
 		relFuzzerPath := strings.TrimPrefix(fuzzer, fuzzerDirectory)
 
 		// Read-n-Pack™
-		packSingleFile(tarWriter, absFuzzerPath, relFuzzerPath, "fuzz_bitmap", false)
-		packSingleFile(tarWriter, absFuzzerPath, relFuzzerPath, "fuzzer_stats", false)
-		packSingleFile(tarWriter, absFuzzerPath, relFuzzerPath, "is_main_fuzzer", true)
+		packSingleFile(tarWriter, absFuzzerPath, relFuzzerPath, "fuzz_bitmap")
+		packSingleFile(tarWriter, absFuzzerPath, relFuzzerPath, "fuzzer_stats")
 		packQueueFiles(tarWriter, absFuzzerPath, relFuzzerPath, &pkgCont)
 	}
 
@@ -70,15 +68,12 @@ func PackFuzzers(fuzzers []string, fuzzerDirectory string) ([]byte, error) {
 // fuzzerDirectory is the base directory, e.g. /project/fuzzers/
 // fuzzer is the name of the fuzzer itself, e.g. main-fuzzer-01
 // filename is the name of the file you want to pack, e.g. fuzzer_stats
-// ignoreNotFound is just used for files which may not be present in all fuzzer directories, like is_main_fuzzer
-func packSingleFile(tarWriter *tar.Writer, absPath string, relPath string, fileName string, ignoreNotFound bool) {
+func packSingleFile(tarWriter *tar.Writer, absPath string, relPath string, fileName string) {
 	// Read file
 	readPath := fmt.Sprintf("%s%c%s%c%s", absPath, os.PathSeparator, relPath, os.PathSeparator, fileName)
 	contents, readErr := ioutil.ReadFile(readPath)
 	if readErr != nil {
-		if !ignoreNotFound {
-			log.Printf("Failed to read file %s: %s", readPath, readErr)
-		}
+		log.Printf("Failed to read file %s: %s", readPath, readErr)
 		return
 	}
 
@@ -127,7 +122,7 @@ func packQueueFiles(tarWriter *tar.Writer, absPath string, relPath string, pkgCo
 		}
 
 		// Pack into the archive
-		packSingleFile(tarWriter, absPath, relPath, fmt.Sprintf("queue%c%s", os.PathSeparator, f.Name()), false)
+		packSingleFile(tarWriter, absPath, relPath, fmt.Sprintf("queue%c%s", os.PathSeparator, f.Name()))
 
 		if noDuplicates {
 			// Append added file name to the list of things included in the package
