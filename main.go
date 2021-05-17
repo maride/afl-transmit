@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/maride/afl-transmit/logistic"
 	"github.com/maride/afl-transmit/net"
 	"github.com/maride/afl-transmit/stats"
 	"github.com/maride/afl-transmit/watchdog"
@@ -20,7 +19,6 @@ func main() {
 	net.RegisterSenderFlags()
 	net.RegisterListenFlags()
 	net.RegisterCryptFlags()
-	logistic.RegisterPackerFlags()
 	stats.RegisterStatsFlags()
 	RegisterGlobalFlags()
 	flag.Parse()
